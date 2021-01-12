@@ -11,5 +11,3 @@ require (
 	github.com/ipfs/go-log/v2 v2.1.1
 	github.com/stvp/tempredis v0.0.0-20181119212430-b82af8480203
 )
-
-replace github.com/aloknerurkar/conn-pool => ../conn-pool
