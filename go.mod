@@ -1,9 +1,9 @@
-module github.com/aloknerurkar/dLocker
+module github.com/plexsysio/dLocker
 
 go 1.14
 
 require (
-	github.com/aloknerurkar/conn-pool v0.0.1
+	github.com/plexsysio/conn-pool v0.0.1
 	github.com/go-redis/redis/v8 v8.4.8
 	github.com/go-redsync/redsync/v4 v4.0.4
 	github.com/go-zookeeper/zk v1.0.2

@@ -3,7 +3,7 @@ package testsuite
 import (
 	"context"
 	"fmt"
-	"github.com/aloknerurkar/dLocker"
+	"github.com/plexsysio/dLocker"
 	"reflect"
 	"runtime"
 	"strings"

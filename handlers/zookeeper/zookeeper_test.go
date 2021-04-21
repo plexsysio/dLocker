@@ -1,7 +1,7 @@
 package zookeeper
 
 import (
-	"github.com/aloknerurkar/dLocker/testsuite"
+	"github.com/plexsysio/dLocker/testsuite"
 	logger "github.com/ipfs/go-log/v2"
 	"os"
 	"strconv"

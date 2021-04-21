@@ -1,7 +1,7 @@
 package memlock
 
 import (
-	"github.com/aloknerurkar/dLocker/testsuite"
+	"github.com/plexsysio/dLocker/testsuite"
 	"testing"
 )
 

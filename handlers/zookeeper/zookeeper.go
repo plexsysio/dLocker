@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aloknerurkar/conn-pool"
+	"github.com/plexsysio/conn-pool"
 	"github.com/go-zookeeper/zk"
 	logger "github.com/ipfs/go-log/v2"
 )
