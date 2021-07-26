@@ -3,12 +3,13 @@ package testsuite
 import (
 	"context"
 	"fmt"
-	"github.com/plexsysio/dLocker"
 	"reflect"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/plexsysio/dLocker"
 )
 
 func getLocker(val interface{}) dLocker.DLocker {
@@ -57,7 +58,7 @@ func TestLock_TryLockSimple(t *testing.T, l dLocker.DLocker) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	<-time.After(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 100)
 	unlock()
 }
 
@@ -70,7 +71,7 @@ func TestLock_TryLockMultiple(t *testing.T, l dLocker.DLocker) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			<-time.After(time.Millisecond * 100)
+			time.Sleep(time.Millisecond * 100)
 			unlock()
 		})
 	}
@@ -85,11 +86,11 @@ func TestLock_TryLockFailSucceed(t *testing.T, l dLocker.DLocker) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := l.TryLock(c, "dummyKey", 15*time.Second); err == nil {
+	if _, err := l.TryLock(c, "dummyKey", 5*time.Second); err == nil {
 		t.Fatal("Able to obtain lock when its not unlocked")
 	}
 	unlock()
-	<-time.After(time.Second)
+	time.Sleep(time.Millisecond * 100)
 
 	if unlock, err := l.TryLock(c, "dummyKey", time.Second); err != nil {
 		t.Fatal(err)

@@ -1,11 +1,12 @@
 package zookeeper
 
 import (
-	"github.com/plexsysio/dLocker/testsuite"
-	logger "github.com/ipfs/go-log/v2"
 	"os"
 	"strconv"
 	"testing"
+
+	logger "github.com/ipfs/go-log/v2"
+	"github.com/plexsysio/dLocker/testsuite"
 )
 
 var zkHostname = func() string {
