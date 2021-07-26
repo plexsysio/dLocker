@@ -86,7 +86,7 @@ func TestLock_TryLockFailSucceed(t *testing.T, l dLocker.DLocker) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := l.TryLock(c, "dummyKey", 5*time.Second); err == nil {
+	if _, err := l.TryLock(c, "dummyKey", 15*time.Second); err == nil {
 		t.Fatal("Able to obtain lock when its not unlocked")
 	}
 	unlock()

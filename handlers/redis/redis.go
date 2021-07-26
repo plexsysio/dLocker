@@ -19,7 +19,7 @@ type redisLocker struct {
 
 var (
 	// ErrTimeout returns when you couldn't make a TryLock call
-	ErrTimeout = errors.New("Timeout reached")
+	ErrTimeout = errors.New("timeout reached")
 
 	// ErrCancelled returns when you have cancelled the context of req
 	ErrCancelled = errors.New("context cancelled")
@@ -63,68 +63,73 @@ func (l *redisLocker) Close() error {
 func (l *redisLocker) TryLock(
 	ctx context.Context,
 	key string,
-	t time.Duration,
+	timeout time.Duration,
 ) (func(), error) {
 	ch := make(chan error)
 	mtx := l.rs.NewMutex(key, redsync.WithExpiry(DefaultTimeout))
 
-	cCtx, cancel := context.WithCancel(ctx)
+	cCtx, _ := context.WithTimeout(ctx, timeout)
 
 	go func() {
 		err := mtx.LockContext(cCtx)
 		select {
 		case ch <- err:
-		default:
+		case <-ctx.Done():
+			if err == nil {
+				// This is meant to handle the case where if the caller routine waiting
+				// for the result is stopped at the same time we are ready with the result
+				// and we are not able to enqueue it on ch. This means we were successful
+				// in getting the lock so we try to relinquish it before quitting
+				mtx.Unlock()
+			}
 		}
 	}()
 
 	select {
 	case err := <-ch:
 		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return nil, ErrTimeout
+			}
 			return nil, err
 		}
-		stop := make(chan bool)
+		stop := make(chan struct{})
 		go func() {
 			t := time.NewTicker(DefaultTicker)
 			for {
 				select {
-				case <-cCtx.Done():
-					log.Errorf("Context cancelled")
 				case <-stop:
-					log.Info("Lock extender stopped")
+					log.Info("lock extender stopped")
 				case <-t.C:
-					v, err := mtx.ValidContext(cCtx)
+					v, err := mtx.ValidContext(ctx)
 					if err != nil {
-						log.Errorf("Failed checking Mutex validity Err:%s", err.Error())
+						log.Errorf("failed checking Mutex validity Err:%s", err.Error())
 						return
 					}
 					if !v {
-						log.Errorf("Mutex no longer valid")
+						log.Errorf("mutex no longer valid")
 						return
 					}
-					extended, err := mtx.ExtendContext(cCtx)
+					extended, err := mtx.ExtendContext(ctx)
 					if err != nil {
-						log.Errorf("Failed extending lock Err:%s", err.Error())
+						log.Errorf("failed extending lock Err:%s", err.Error())
 						return
 					}
 					if !extended {
-						log.Errorf("Unable to extend mutex")
+						log.Errorf("unable to extend mutex")
 						return
 					}
-					log.Infof("Lock extended")
+					log.Infof("lock extended")
 					continue
 				}
 				return
 			}
 		}()
-		log.Debugf("Lock acquired %s", key)
+		log.Debugf("lock acquired %s", key)
 		return func() {
-			stop <- true
-			mtx.UnlockContext(cCtx)
+			close(stop)
+			mtx.UnlockContext(ctx)
 		}, nil
-	case <-time.After(t):
-		cancel()
-		return nil, ErrTimeout
 	case <-ctx.Done():
 		return nil, ErrCancelled
 	}
