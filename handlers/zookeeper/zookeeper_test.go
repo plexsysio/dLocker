@@ -1,4 +1,4 @@
-package zookeeper
+package zookeeper_test
 
 import (
 	"os"
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	logger "github.com/ipfs/go-log/v2"
+	"github.com/plexsysio/dLocker/handlers/zookeeper"
 	"github.com/plexsysio/dLocker/testsuite"
 )
 
@@ -29,7 +30,7 @@ var zkPort = func() int {
 func TestLockerSuite(t *testing.T) {
 	logger.SetLogLevel("locker/zk", "Debug")
 	t.Log(zkHostname(), zkPort())
-	l, err := NewZkLocker(zkHostname(), zkPort())
+	l, err := zookeeper.NewZkLocker(zkHostname(), zkPort())
 	if err != nil {
 		t.Fatal("unable to connect to zookeeper", err)
 	}
@@ -44,7 +45,7 @@ func TestLockerSuite(t *testing.T) {
 
 func BenchmarkSuite(b *testing.B) {
 	logger.SetLogLevel("locker/zk", "Error")
-	l, err := NewZkLocker(zkHostname(), zkPort())
+	l, err := zookeeper.NewZkLocker(zkHostname(), zkPort())
 	if err != nil {
 		b.Fatal("unable to connect to zookeeper", err)
 	}
