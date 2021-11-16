@@ -3,11 +3,12 @@ package redis
 import (
 	"context"
 	"errors"
+	"time"
+
 	goredislib "github.com/go-redis/redis/v8"
 	"github.com/go-redsync/redsync/v4"
 	"github.com/go-redsync/redsync/v4/redis/goredis/v8"
 	logger "github.com/ipfs/go-log/v2"
-	"time"
 )
 
 var log = logger.Logger("locker/redis")
@@ -19,7 +20,7 @@ type redisLocker struct {
 
 var (
 	// ErrTimeout returns when you couldn't make a TryLock call
-	ErrTimeout = errors.New("Timeout reached")
+	ErrTimeout = errors.New("timeout reached")
 
 	// ErrCancelled returns when you have cancelled the context of req
 	ErrCancelled = errors.New("context cancelled")
@@ -63,68 +64,68 @@ func (l *redisLocker) Close() error {
 func (l *redisLocker) TryLock(
 	ctx context.Context,
 	key string,
-	t time.Duration,
+	timeout time.Duration,
 ) (func(), error) {
-	ch := make(chan error)
+
 	mtx := l.rs.NewMutex(key, redsync.WithExpiry(DefaultTimeout))
 
-	cCtx, cancel := context.WithCancel(ctx)
+	acquired := make(chan struct{})
+	var err error
 
 	go func() {
-		err := mtx.LockContext(cCtx)
-		select {
-		case ch <- err:
-		default:
-		}
+		defer close(acquired)
+
+		cCtx, cCancel := context.WithTimeout(ctx, timeout)
+		defer cCancel()
+
+		err = mtx.LockContext(cCtx)
 	}()
 
 	select {
-	case err := <-ch:
+	case <-acquired:
 		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return nil, ErrTimeout
+			}
 			return nil, err
 		}
-		stop := make(chan bool)
+		stop := make(chan struct{})
 		go func() {
 			t := time.NewTicker(DefaultTicker)
 			for {
 				select {
-				case <-cCtx.Done():
-					log.Errorf("Context cancelled")
 				case <-stop:
-					log.Info("Lock extender stopped")
+					log.Info("lock extender stopped")
 				case <-t.C:
-					v, err := mtx.ValidContext(cCtx)
+					v, err := mtx.ValidContext(ctx)
 					if err != nil {
-						log.Errorf("Failed checking Mutex validity Err:%s", err.Error())
+						log.Errorf("failed checking Mutex validity Err:%s", err.Error())
 						return
 					}
 					if !v {
-						log.Errorf("Mutex no longer valid")
+						log.Errorf("mutex no longer valid")
 						return
 					}
-					extended, err := mtx.ExtendContext(cCtx)
+					extended, err := mtx.ExtendContext(ctx)
 					if err != nil {
-						log.Errorf("Failed extending lock Err:%s", err.Error())
+						log.Errorf("failed extending lock Err:%s", err.Error())
 						return
 					}
 					if !extended {
-						log.Errorf("Unable to extend mutex")
+						log.Errorf("unable to extend mutex")
 						return
 					}
-					log.Infof("Lock extended")
+					log.Infof("lock extended")
 					continue
 				}
 				return
 			}
 		}()
-		log.Debugf("Lock acquired %s", key)
+		log.Debugf("lock acquired %s", key)
 		return func() {
-			stop <- true
-			mtx.UnlockContext(cCtx)
+			close(stop)
+			mtx.UnlockContext(ctx)
 		}, nil
-	case <-time.After(t):
-		cancel()
-		return nil, ErrTimeout
 	case <-ctx.Done():
 		return nil, ErrCancelled
 	}

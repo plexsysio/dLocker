@@ -1,12 +1,16 @@
-package memlock
+package memlock_test
 
 import (
-	"github.com/plexsysio/dLocker/testsuite"
 	"testing"
+
+	"github.com/plexsysio/dLocker/handlers/memlock"
+	"github.com/plexsysio/dLocker/testsuite"
 )
 
 func TestLockerSuite(t *testing.T) {
-	testsuite.RunTests(t, func() interface{} {
-		return NewLocker()
-	})
+	testsuite.RunTests(t, memlock.NewLocker())
+}
+
+func BenchmarkSuite(b *testing.B) {
+	testsuite.RunBenchmark(b, memlock.NewLocker())
 }

@@ -1,11 +1,13 @@
-package zookeeper
+package zookeeper_test
 
 import (
-	"github.com/plexsysio/dLocker/testsuite"
-	logger "github.com/ipfs/go-log/v2"
 	"os"
 	"strconv"
 	"testing"
+
+	logger "github.com/ipfs/go-log/v2"
+	"github.com/plexsysio/dLocker/handlers/zookeeper"
+	"github.com/plexsysio/dLocker/testsuite"
 )
 
 var zkHostname = func() string {
@@ -28,11 +30,30 @@ var zkPort = func() int {
 func TestLockerSuite(t *testing.T) {
 	logger.SetLogLevel("locker/zk", "Debug")
 	t.Log(zkHostname(), zkPort())
-	testsuite.RunTests(t, func() interface{} {
-		l, err := NewZkLocker(zkHostname(), zkPort())
+	l, err := zookeeper.NewZkLocker(zkHostname(), zkPort())
+	if err != nil {
+		t.Fatal("unable to connect to zookeeper", err)
+	}
+	defer func() {
+		err := l.Close()
 		if err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
-		return l
-	})
+	}()
+	testsuite.RunTests(t, l)
+}
+
+func BenchmarkSuite(b *testing.B) {
+	logger.SetLogLevel("locker/zk", "Error")
+	l, err := zookeeper.NewZkLocker(zkHostname(), zkPort())
+	if err != nil {
+		b.Fatal("unable to connect to zookeeper", err)
+	}
+	defer func() {
+		err := l.Close()
+		if err != nil {
+			b.Fatal(err)
+		}
+	}()
+	testsuite.RunBenchmark(b, l)
 }
