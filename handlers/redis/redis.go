@@ -3,11 +3,12 @@ package redis
 import (
 	"context"
 	"errors"
+	"time"
+
 	goredislib "github.com/go-redis/redis/v8"
 	"github.com/go-redsync/redsync/v4"
 	"github.com/go-redsync/redsync/v4/redis/goredis/v8"
 	logger "github.com/ipfs/go-log/v2"
-	"time"
 )
 
 var log = logger.Logger("locker/redis")
@@ -65,28 +66,23 @@ func (l *redisLocker) TryLock(
 	key string,
 	timeout time.Duration,
 ) (func(), error) {
-	ch := make(chan error)
+
 	mtx := l.rs.NewMutex(key, redsync.WithExpiry(DefaultTimeout))
 
-	cCtx, _ := context.WithTimeout(ctx, timeout)
+	acquired := make(chan struct{})
+	var err error
 
 	go func() {
-		err := mtx.LockContext(cCtx)
-		select {
-		case ch <- err:
-		case <-ctx.Done():
-			if err == nil {
-				// This is meant to handle the case where if the caller routine waiting
-				// for the result is stopped at the same time we are ready with the result
-				// and we are not able to enqueue it on ch. This means we were successful
-				// in getting the lock so we try to relinquish it before quitting
-				mtx.Unlock()
-			}
-		}
+		defer close(acquired)
+
+		cCtx, cCancel := context.WithTimeout(ctx, timeout)
+		defer cCancel()
+
+		err = mtx.LockContext(cCtx)
 	}()
 
 	select {
-	case err := <-ch:
+	case <-acquired:
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				return nil, ErrTimeout

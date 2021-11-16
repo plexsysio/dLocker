@@ -29,11 +29,30 @@ var zkPort = func() int {
 func TestLockerSuite(t *testing.T) {
 	logger.SetLogLevel("locker/zk", "Debug")
 	t.Log(zkHostname(), zkPort())
-	testsuite.RunTests(t, func() interface{} {
-		l, err := NewZkLocker(zkHostname(), zkPort())
+	l, err := NewZkLocker(zkHostname(), zkPort())
+	if err != nil {
+		t.Fatal("unable to connect to zookeeper", err)
+	}
+	defer func() {
+		err := l.Close()
 		if err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
-		return l
-	})
+	}()
+	testsuite.RunTests(t, l)
+}
+
+func BenchmarkSuite(b *testing.B) {
+	logger.SetLogLevel("locker/zk", "Error")
+	l, err := NewZkLocker(zkHostname(), zkPort())
+	if err != nil {
+		b.Fatal("unable to connect to zookeeper", err)
+	}
+	defer func() {
+		err := l.Close()
+		if err != nil {
+			b.Fatal(err)
+		}
+	}()
+	testsuite.RunBenchmark(b, l)
 }
