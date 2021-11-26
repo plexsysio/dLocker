@@ -2,32 +2,68 @@ package etcd
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	logger "github.com/ipfs/go-log/v2"
+	cpool "github.com/plexsysio/conn-pool"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
+	"google.golang.org/grpc/connectivity"
 )
 
 var log = logger.Logger("locker/etcd")
 
 type etcdLocker struct {
-	cli *clientv3.Client
+	pool *cpool.Pool
+}
+
+type etcdConn struct {
+	cli  *clientv3.Client
+	sess *concurrency.Session
 }
 
 func New(endpoint string) (*etcdLocker, error) {
-	cli, err := clientv3.New(clientv3.Config{
-		Endpoints: []string{endpoint},
-	})
+	cpool, err := cpool.New(
+		endpoint,
+		func(ep string) (cpool.Conn, error) {
+			cli, err := clientv3.New(clientv3.Config{
+				Endpoints: []string{endpoint},
+			})
+			if err != nil {
+				return nil, err
+			}
+			sess, err := concurrency.NewSession(cli)
+			if err != nil {
+				return nil, err
+			}
+			return &etcdConn{
+				cli:  cli,
+				sess: sess,
+			}, nil
+		},
+		func(c cpool.Conn) error {
+			if c.(*etcdConn).cli.ActiveConnection().GetState() == connectivity.Shutdown {
+				return errors.New("invalid grpc conn state")
+			}
+			return nil
+		},
+		func(c cpool.Conn) error {
+			c.(*etcdConn).sess.Close()
+			c.(*etcdConn).cli.Close()
+			return nil
+		},
+		100, 20, 15*time.Minute,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	return &etcdLocker{cli: cli}, nil
+	return &etcdLocker{pool: cpool}, nil
 }
 
 func (l *etcdLocker) Close() error {
-	return l.cli.Close()
+	return l.pool.Close()
 }
 
 func (l *etcdLocker) TryLock(
@@ -36,11 +72,12 @@ func (l *etcdLocker) TryLock(
 	timeout time.Duration,
 ) (func(), error) {
 
-	s, err := concurrency.NewSession(l.cli)
+	econn, done, err := l.pool.GetContext(ctx)
 	if err != nil {
-		return func() {}, err
+		return nil, err
 	}
-	lk := concurrency.NewMutex(s, key)
+
+	lk := concurrency.NewMutex(econn.(*etcdConn).sess, key)
 
 	acquired := make(chan struct{})
 
@@ -59,11 +96,11 @@ func (l *etcdLocker) TryLock(
 			log.Debugf("lock acquired %s", key)
 			return func() {
 				lk.Unlock(ctx)
-				s.Close()
+				done()
 			}, nil
 		}
 	case <-ctx.Done():
 		err = ctx.Err()
 	}
-	return func() {}, err
+	return nil, err
 }
