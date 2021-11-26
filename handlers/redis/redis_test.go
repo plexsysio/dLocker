@@ -16,24 +16,24 @@ func TestLockerSuite(t *testing.T) {
 		t.Fatal("failed starting redis", err)
 	}
 	l := redis.NewRedisLocker("unix", srv.Socket())
-	defer func() {
+	t.Cleanup(func() {
 		err := l.Close()
 		if err != nil {
 			t.Fatal("failed closing redis locker", err)
 		}
 		srv.Term()
-	}()
+	})
 	testsuite.RunTests(t, l)
 }
 
 func BenchmarkSuite(b *testing.B) {
 	logger.SetLogLevel("locker/redis", "Error")
 	l := redis.NewRedisLocker("tcp", "localhost:6379")
-	defer func() {
+	b.Cleanup(func() {
 		err := l.Close()
 		if err != nil {
 			b.Fatal("failed closing redis locker", err)
 		}
-	}()
+	})
 	testsuite.RunBenchmark(b, l)
 }

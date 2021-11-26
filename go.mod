@@ -11,4 +11,5 @@ require (
 	github.com/plexsysio/conn-pool v0.0.2
 	github.com/stvp/tempredis v0.0.0-20181119212430-b82af8480203
 	go.etcd.io/etcd/client/v3 v3.5.1
+	google.golang.org/grpc v1.42.0
 )

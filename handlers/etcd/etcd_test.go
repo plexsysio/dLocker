@@ -14,12 +14,12 @@ func TestLockerSuite(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed starting locker", err)
 	}
-	defer func() {
+	t.Cleanup(func() {
 		err := l.Close()
 		if err != nil {
 			t.Fatal("failed closing etcd locker", err)
 		}
-	}()
+	})
 	testsuite.RunTests(t, l)
 }
 
@@ -29,11 +29,11 @@ func BenchmarkSuite(b *testing.B) {
 	if err != nil {
 		b.Fatal("failed starting locker", err)
 	}
-	defer func() {
+	b.Cleanup(func() {
 		err := l.Close()
 		if err != nil {
 			b.Fatal("failed closing etcd locker", err)
 		}
-	}()
+	})
 	testsuite.RunBenchmark(b, l)
 }

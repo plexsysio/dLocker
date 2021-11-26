@@ -34,12 +34,12 @@ func TestLockerSuite(t *testing.T) {
 	if err != nil {
 		t.Fatal("unable to connect to zookeeper", err)
 	}
-	defer func() {
+	t.Cleanup(func() {
 		err := l.Close()
 		if err != nil {
 			t.Fatal(err)
 		}
-	}()
+	})
 	testsuite.RunTests(t, l)
 }
 
@@ -49,11 +49,11 @@ func BenchmarkSuite(b *testing.B) {
 	if err != nil {
 		b.Fatal("unable to connect to zookeeper", err)
 	}
-	defer func() {
+	b.Cleanup(func() {
 		err := l.Close()
 		if err != nil {
 			b.Fatal(err)
 		}
-	}()
+	})
 	testsuite.RunBenchmark(b, l)
 }
