@@ -3,7 +3,7 @@ module github.com/plexsysio/dLocker
 go 1.14
 
 require (
-	github.com/go-redis/redis/v8 v8.11.4
+	github.com/go-redis/redis/v8 v8.11.0
 	github.com/go-redsync/redsync/v4 v4.0.4
 	github.com/go-zookeeper/zk v1.0.2
 	github.com/gomodule/redigo v1.8.3 // indirect
